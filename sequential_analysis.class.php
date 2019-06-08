@@ -217,9 +217,9 @@ class Sequential_analysis {
         //設定code
         if ($config_codes != '') {
             //var _last_code = null;
-            for ($i = 0; $i < strlen($config_codes); $i++)
+            for ($i = 0; $i < mb_strlen($config_codes); $i++)
             {
-                $code = substr($config_codes, $i, 1);
+                $code = mb_substr($config_codes, $i, 1);
 
                 $code_list[] = $code;
                 $code_f[$code] = 0;
@@ -273,8 +273,8 @@ class Sequential_analysis {
 
         $break_list = array(' ', '\t', '\n');
 
-        for ($i = 0; $i < strlen($obs); $i++) {
-            $code = substr($obs, $i, 1);
+        for ($i = 0; $i < mb_strlen($obs); $i++) {
+            $code = mb_substr($obs, $i, 1);
 
             if (in_array($code, $break_list) === true) {
                 $output[] = array();
@@ -282,8 +282,8 @@ class Sequential_analysis {
             else if ($code == '(') {
                 $multi_code = array();
                 $i++;
-                while (substr($obs, $i, 1) !== ')') {
-                    $code = substr($obs, $i, 1);
+                while (mb_substr($obs, $i, 1) !== ')') {
+                    $code = mb_substr($obs, $i, 1);
                     $multi_code[] = $code;
                     $i++; 
                 }
@@ -410,7 +410,7 @@ class Sequential_analysis {
                             $event = $n_event[$e];
                             for ($p = 0; $p < count($prev_seq); $p++) {
                                 $p_seq = $prev_seq[$p];
-                                $last_p_seq = substr($p_seq, count($p_seq)-1, 1);
+                                $last_p_seq = mb_substr($p_seq, count($p_seq)-1, 1);
 
                                 //判斷是否是_repeatable
                                 if ($last_p_seq == $event) {
@@ -473,8 +473,8 @@ class Sequential_analysis {
     var $position_frequency = array();
     
     function calc_position_frequency($seq_name) {
-        for ($i = 0; $i < strlen($seq_name); $i++) {
-            $code = substr($seq_name, $i, 1);
+        for ($i = 0; $i < mb_strlen($seq_name); $i++) {
+            $code = mb_substr($seq_name, $i, 1);
             if (isset($this->position_frequency[$code]) === FALSE) {
                 $this->position_frequency[$code] = array();
             }
@@ -533,7 +533,7 @@ class Sequential_analysis {
     }
     
     function create_martix_lag_list($name = "") {
-        if (strlen($name) === ($this->lag - 1)) {
+        if (mb_strlen($name) === ($this->lag - 1)) {
             $this->lag_list[] = $name;
         }
         else {
@@ -661,6 +661,7 @@ function create_obs_seq_pos_table() {
 /**
  * 編碼頻率與機率表
  * 20160722 1420 開始整理
+ * @deprecated 20160722 好像沒用到
  */
 function create_obs_f_table() {
     
@@ -709,9 +710,9 @@ function create_exp_pos_1_table() {
             $row_code_f = $cf;
             $exp_pos = $cf / $n;
             
-            for ($k = 0; $k < strlen($col_code); $k++) {
+            for ($k = 0; $k < mb_strlen($col_code); $k++) {
 
-                $col_c = substr($col_code, $k, 1);
+                $col_c = mb_substr($col_code, $k, 1);
                 
                 $f = 0;
                 if (isset($code_f[$col_c]) && is_int($code_f[$col_c])) {
@@ -1192,11 +1193,11 @@ function create_last_ns_table() {
     
     function _calc_prop_targets($col_code, $row_code, $pos_first = FALSE, $prop = 1) {
         //echo $col_code."+";
-        for ($i = 0; $i < strlen($col_code); $i++) {
-            $code = substr($col_code, $i, 1);
+        for ($i = 0; $i < mb_strlen($col_code); $i++) {
+            $code = mb_substr($col_code, $i, 1);
             $prev_code = $row_code;
             if ($i > 0) {
-                $prev_code = substr($col_code, ($i-1), 1);
+                $prev_code = mb_substr($col_code, ($i-1), 1);
             }
 
             $fg = 0;
@@ -1512,16 +1513,19 @@ function create_last_ns_table() {
      */
     function export_sign_result($target_model = NULL) {
         $export = array();
-        
         foreach ($this->sign_result AS $model => $results) {
             if (count($results) > 0) {
                 $ary = array();
                 foreach ($results AS $seq => $z) {
+                  $source = mb_substr($seq, 0, 1);
+                  $target = mb_substr($seq, 1, 1);
+                  $frequency = $this->sf[$source][$target];
                     $ary[] = array(
-                        "source" => substr($seq, 0, 1),
-                        "target" => substr($seq, 1, 1),
+                        "source" => $source,
+                        "target" => $target,
                         "value" => $z,
-                        "label" => round($z, 2)
+                        "label" => round($z, 2),
+                        "frequency" => $frequency
                     );
                 }
                 $export[$model] = $ary;
@@ -1538,6 +1542,16 @@ function create_last_ns_table() {
         }
         
         return $export;
+    }
+    
+    function export_sign_result_csv ($target_model = NULL) {
+      $export = $this->export_sign_result($target_model);
+      $exportCSV = array();
+      $exportCSV[] = 'source,target,label,value,frequency';
+      foreach ($export AS $item) {
+        $exportCSV[] = $item['source'].','.$item['target'].','.$item['label'].','.$item['value'].','.$item['frequency'];
+      }
+      return implode("\n", $exportCSV);
     }
 
     /**
@@ -1599,3 +1613,30 @@ function create_last_ns_table() {
     
     
 }   //  class sa {
+
+if (!function_exists('mb_str_replace'))
+{
+   function mb_str_replace($search, $replace, $subject, &$count = 0)
+   {
+      if (!is_array($subject))
+      {
+         $searches = is_array($search) ? array_values($search) : array($search);
+         $replacements = is_array($replace) ? array_values($replace) : array($replace);
+         $replacements = array_pad($replacements, count($searches), '');
+         foreach ($searches as $key => $search)
+         {
+            $parts = mb_split(preg_quote($search), $subject);
+            $count += count($parts) - 1;
+            $subject = implode($replacements[$key], $parts);
+         }
+      }
+      else
+      {
+         foreach ($subject as $key => $value)
+         {
+            $subject[$key] = str_replace($search, $replace, $value, $count);
+         }
+      }
+      return $subject;
+   }
+}
